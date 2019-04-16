@@ -129,6 +129,34 @@ public class Indexof
         full_pattern = line.getBytes ();
         lengths = new int [] {4, 8, 16, 32, 64, 96, full_pattern.length};
     }
+
+    private static void read_utf (String name) throws Exception
+    {
+        File f = new File (name);
+        FileInputStream in = new FileInputStream (f);
+        int length = (int) f.length ();
+        byte [] buf = new byte [length];
+        in.read (buf);
+        in.close ();
+        texts = new byte[][] {buf};
+    }
+
+    static void define_line_utf ()
+    {
+        
+        byte [] text = texts [0];
+        int ind = text.length * 2 / 3;
+        while (text[ind] != (byte) '\n') ++ ind;
+        while ((text[ind] & 0xFF) < 0x80) ++ ind;
+        int i = 0;
+        while (text [ind+i] != '\r') ++ i;
+        System.out.println ("Pattern Length = " + i);
+        full_pattern = Arrays.copyOfRange (text, ind, ind + i);
+        lengths = new int [] {4, 8, 16, 32, 64, 96, full_pattern.length};
+        for (int j = 0; j < lengths.length - 1; j++) {
+            while ((full_pattern [lengths[j]] & 0xC0) == 0x80) ++ lengths[j];
+        }
+    }
     
     static void generate_source (int size, int ntexts)
     {
@@ -157,6 +185,12 @@ public class Indexof
             read_source ("text");
             define_line ();
             ITERS = 50000;
+            break;
+        case "utf":
+            read_utf ("Book-23950.txt");
+            define_line_utf ();
+            max_matcher_count = 1;
+            ITERS = 2000;
             break;
         case "random":
             generate_source (4 * 1024 * 1024, 1);
