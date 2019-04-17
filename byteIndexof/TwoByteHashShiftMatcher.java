@@ -15,8 +15,9 @@ import java.util.Arrays;
  */
 public class TwoByteHashShiftMatcher extends MatcherFactory
 {
-    static long neq_ind_sum = 0;
+    static long count = 0;
     static long compare_count = 0;
+    static long total_shift = 0;
 
     /**
      * Controls how much memory is allocated for hash table, 0 = 1kB, 1 = 2kB, 2 = 4kB, etc.
@@ -47,6 +48,12 @@ public class TwoByteHashShiftMatcher extends MatcherFactory
               int hash = ((text[i - 1] & 0xff) << p2) ^ (text[i] & 0xff);
               int skip = shifts[hash];
 
+              if (DEBUG) {
+                  ++ count;
+                  total_shift += skip;
+                  if (skip == 0) ++ compare_count;
+              }
+              
               if(skip == 0) {  // No skip, let's compare
                 if(compare (text, i - offset, pattern, pattern_len)) {
                   return i - offset;
@@ -82,13 +89,20 @@ public class TwoByteHashShiftMatcher extends MatcherFactory
     }
 
     @Override
+    public String toString ()
+    {
+        return this.getClass ().getSimpleName () + "(" + p2 + ")";
+    }
+    
+    @Override
     public String stats ()
     {
-        if (compare_count == 0) {
+        if (count == 0) {
             return "";
         }
-        double avg = neq_ind_sum * 1.0 / compare_count;
-        compare_count = neq_ind_sum = 0;
-        return String.format ("; avg neq index = %5.2f", avg);
+        double avg_shift = total_shift * 1.0 / count;
+        double compare_rate = compare_count * 100.0 / count;
+        compare_count = count = total_shift = 0;
+        return String.format ("; compare rate: %5.2f; avg shift=%5.2f", compare_rate, avg_shift);
     }
 }

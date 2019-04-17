@@ -165,7 +165,7 @@ public class Indexof
         for (int i = 0; i < ntexts; i++) {
             texts [i] = new byte [size];
             rand.nextBytes (texts [i]);
-            System.out.println ("Allocted " + i);
+            System.out.println ("Allocated " + i);
         }
     }
     
@@ -218,7 +218,7 @@ public class Indexof
             generate_line (1 << 20);
             max_matcher_count = 1;
             lengths = new int [] {1<<14, 1<<15, 1<<16, 1<<17, 1<<18, 1<<19, 1<<20};
-            ITERS = 1;
+            ITERS = 16;
             break;
         default:
             System.out.println ("Usage: java byteIndexof.Indexof text | random | medium | big | huge");
@@ -260,5 +260,6 @@ public class Indexof
         test (new ChainSuffixMatcher3 ());
         test (new LightChainSuffixMatcher ());
         test (new LightestChainSuffixMatcher ());
+        test (new TwoByteHashShiftMatcher ());
     }
 }
