@@ -1,0 +1,89 @@
+package byteIndexof;
+
+import java.util.Arrays;
+
+/**
+ * Similar to a last byte matcher, except this matches two bytes at once.  Normally this
+ * would require a shift table of 65536 entries, but with some hashing of the four bytes
+ * involved, the table can be kept small.  If there is a hash collision for two quads of
+ * bytes, the most conservative shift value is stored in the table.<p>
+ *
+ * @author John Hendrikx
+ */
+public class FourByteHashShiftMatcher extends MatcherFactory
+{
+    static long neq_ind_sum = 0;
+    static long compare_count = 0;
+
+    private static final class MatcherImpl extends Matcher
+    {
+        private final byte[] pattern;
+        private final int[] shifts;
+
+        public MatcherImpl(byte [] pattern, int[] shifts) {
+            this.pattern = pattern;
+            this.shifts = shifts;
+        }
+
+        @Override
+        public int indexOf (byte[] text, int fromIdx) {
+            int pattern_len = pattern.length;
+            int text_len = text.length;
+            int offset = pattern_len - 4;
+            int i = fromIdx + offset;
+            int maxLen = text_len - pattern_len + offset;
+
+            while(i < maxLen) {
+              int x = (text[i] << 24) | ((text[i + 1] & 0xff) << 16) | ((text[i + 2] & 0xff) << 8) | (text[i + 3] & 0xff);
+              int hash = ((x >>> 16) ^ x);
+              hash = ((hash >> 4) ^ hash) & 0xfff;
+
+              int skip = shifts[hash];
+
+              if(skip == 0) {  // No skip, let's compare
+                if(compare (text, i - offset, pattern, pattern_len)) {
+                  return i - offset;
+                }
+                i++;  // Compare failed, move ahead 1.
+              }
+
+              i += skip;  // Can be done always, if skip was zero it does nothing.
+            }
+
+            return -1;
+        }
+    }
+
+    @Override
+    public Matcher createMatcher (byte[] pattern) {
+      int[] shifts = new int[4096];
+
+      Arrays.fill(shifts, pattern.length - 3);  // Fill hash table with the maximum allowed shift for all entries
+
+      // Overwrite entries part of the pattern with lower shift values:
+      for(int i = pattern.length - 4; i >= 0; i--) {
+        int shift = pattern.length - 4 - i;
+        int x = (pattern[i] << 24) | ((pattern[i + 1] & 0xff) << 16) | ((pattern[i + 2] & 0xff) << 8) | (pattern[i + 3] & 0xff);
+
+        int hash = ((x >>> 16) ^ x);
+        hash = ((hash >> 4) ^ hash) & 0xfff;
+
+        if(shifts[hash] > shift) {  // Because there can be collisions in the hash, take the most conservative shift value
+          shifts[hash] = shift;
+        }
+      }
+
+      return new MatcherImpl(pattern, shifts);
+    }
+
+    @Override
+    public String stats ()
+    {
+        if (compare_count == 0) {
+            return "";
+        }
+        double avg = neq_ind_sum * 1.0 / compare_count;
+        compare_count = neq_ind_sum = 0;
+        return String.format ("; avg neq index = %5.2f", avg);
+    }
+}
